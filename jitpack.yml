@@ -1,0 +1,9 @@
+# JitPack 构建配置
+#
+# JitPack 的构建机是 Linux，无法编译 Kotlin/Native 的 iOS 目标，
+# 因此这里只发布 android + jvm；iOS 制品需在 macOS 上本地发布。
+jdk:
+  - openjdk17
+
+install:
+  - ./gradlew :nexioui:publishToMavenLocal -Pnexioui.ios=false

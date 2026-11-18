@@ -8,7 +8,7 @@
 
 - **一套源码多端复用**：Android、Desktop(JVM)、iOS（arm64 + Simulator arm64）。
 - **HyperOS 风格控件**：卡片、按钮、开关、滑块、分段控件、搜索栏、数字选择器、日期区间日历、偏好设置项、顶栏 / 底栏、底部弹窗、对话框等。
-- **液态玻璃材质**：基于 [softglass](https://github.com/HaoZai000/softglass) 的实时高斯模糊与柔光着色器，Android / Skia 后端通用。
+- **液态玻璃材质**：基于 [SoftGlass](https://github.com/HaoZai000/SoftGlass) 的实时高斯模糊与柔光着色器，Android / Skia 后端通用。
 - **统一交互反馈**：全库共用一套按压高光（AGSL RuntimeShader）与整块淡色按压指示器，不使用 Material 水波纹。
 - **滚动与动效**：弹簧回弹 overscroll、滚动触感、共享元素转场、弧形弯折、水波纹等。
 
@@ -44,7 +44,7 @@ dependencies {
 }
 ```
 
-> 玻璃材质依赖 `com.github.HaoZai000.softglass:softglass`，会随本库传递引入，同样来自 JitPack。
+> 玻璃材质依赖 `com.github.HaoZai000.SoftGlass:softglass`，会随本库传递引入，同样来自 JitPack。
 >
 > JitPack 的构建机是 Linux，只能产出 Android / JVM 制品；iOS 请在 macOS 上克隆源码后本地发布。需要 iOS 制品时可以提 issue，后续会改用支持全平台的 CI 发布。
 

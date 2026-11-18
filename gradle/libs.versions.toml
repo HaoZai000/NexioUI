@@ -11,7 +11,7 @@ navigationevent = "1.1.2"
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
-softglass = { module = "com.github.HaoZai000.softglass:softglass", version.ref = "softglass" }
+softglass = { module = "com.github.HaoZai000.SoftGlass:softglass", version.ref = "softglass" }
 navigationevent-compose = { module = "androidx.navigationevent:navigationevent-compose", version.ref = "navigationevent" }
 
 [plugins]

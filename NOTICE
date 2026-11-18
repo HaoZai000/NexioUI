@@ -28,7 +28,7 @@ limitations under the License.
    范围：`interaction/DampedDragAnimation.kt` 等拖拽形变动画实现。
 
 3. softglass
-   项目：https://github.com/HaoZai000/softglass
+   项目：https://github.com/HaoZai000/SoftGlass
    许可：Apache License 2.0
    范围：液态玻璃 / 柔光材质、backdrop 采样与模糊着色器（以依赖形式引入）。
 

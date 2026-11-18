@@ -54,7 +54,7 @@ jobs:
       # 这里把 softglass 源码并排拉下来，让 includeBuild 走源码编译。
       - uses: actions/checkout@v4
         with:
-          repository: HaoZai000/softglass
+          repository: HaoZai000/SoftGlass
           ref: 0.1.3
           path: softglass
       - uses: actions/setup-java@v4

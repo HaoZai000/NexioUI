@@ -52,12 +52,14 @@ fun ArrowPreference(
         startAction = startAction,
         endActions = {
             Row(
-                modifier = Modifier.padding(end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically)
+                    .weight(1f, fill = false),
             ) {
                 endActions()
-                ArrowPreferenceEndAction(enabled = enabled)
             }
+            ArrowPreferenceEndAction(enabled = enabled)
         },
         bottomAction = bottomAction,
         insideMargin = insideMargin,

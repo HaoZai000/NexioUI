@@ -89,8 +89,8 @@ fun BgEffectBackgroundWithPreset(
         val isTablet = isTabletWidth()
         val painter = remember { BgEffectPainter() }
 
-        val preset = remember(isDark, isTablet) {
-            BgEffectConfig.get(isDark, isTablet)
+        val preset = remember(isDark, isTablet, presetOverride) {
+            presetOverride ?: BgEffectConfig.get(isDark, isTablet)
         }
 
         val colorStage = remember { Animatable(0f) }

@@ -62,13 +62,13 @@ kotlin {
 }
 
 // JitPack 通过 maven-publish 的产物发布，实际坐标由仓库推导：
-// com.github.HaoZai000.nexioui:nexioui:<tag>
+// com.github.HaoZai000.NexioUI:nexioui:<tag>
 publishing {
     publications.withType<org.gradle.api.publish.maven.MavenPublication>().configureEach {
         pom {
             name.set("NexioUI")
             description.set("可复用的 Compose Multiplatform 控件库，Android / JVM / iOS 共用一套源码。")
-            url.set("https://github.com/HaoZai000/nexioui")
+            url.set("https://github.com/HaoZai000/NexioUI")
             licenses {
                 license {
                     name.set("The Apache License, Version 2.0")
@@ -82,9 +82,9 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:https://github.com/HaoZai000/nexioui.git")
-                developerConnection.set("scm:git:ssh://git@github.com/HaoZai000/nexioui.git")
-                url.set("https://github.com/HaoZai000/nexioui")
+                connection.set("scm:git:https://github.com/HaoZai000/NexioUI.git")
+                developerConnection.set("scm:git:ssh://git@github.com/HaoZai000/NexioUI.git")
+                url.set("https://github.com/HaoZai000/NexioUI")
             }
         }
     }

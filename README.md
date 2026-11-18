@@ -40,7 +40,7 @@ dependencyResolutionManagement {
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.github.HaoZai000.nexioui:nexioui:0.1.0")
+    implementation("com.github.HaoZai000.NexioUI:nexioui:0.1.0")
 }
 ```
 
@@ -139,7 +139,7 @@ Box(
 ./gradlew :nexioui:publishToMavenLocal     # 本地发布，验证产物
 ```
 
-发布：仓库打 tag 后由 JitPack 构建，坐标为 `com.github.HaoZai000.nexioui:nexioui:<tag>`。
+发布：仓库打 tag 后由 JitPack 构建，坐标为 `com.github.HaoZai000.NexioUI:nexioui:<tag>`。
 
 ## 第三方与许可
 

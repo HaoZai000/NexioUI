@@ -83,12 +83,8 @@ actual fun TextField(
     val themeColor = NexioTheme.colorScheme.primary
     val baseTextColor = textStyle.color.takeIf { it.isSpecified }
         ?: NexioTheme.colorScheme.onSurface
-    val textColor = if (enabled) baseTextColor else NexioTheme.colorScheme.disabledOnSurface
-    val hintColor = if (enabled) {
-        NexioTheme.colorScheme.onSurfaceVariantSummary
-    } else {
-        NexioTheme.colorScheme.disabledOnSurface
-    }
+    val textColor = baseTextColor
+    val hintColor = NexioTheme.colorScheme.onSurfaceVariantActions
 
     TextFieldShell(
         text = value,
@@ -177,12 +173,8 @@ actual fun TextField(
     val themeColor = NexioTheme.colorScheme.primary
     val baseTextColor = textStyle.color.takeIf { it.isSpecified }
         ?: NexioTheme.colorScheme.onSurface
-    val textColor = if (enabled) baseTextColor else NexioTheme.colorScheme.disabledOnSurface
-    val hintColor = if (enabled) {
-        NexioTheme.colorScheme.onSurfaceVariantSummary
-    } else {
-        NexioTheme.colorScheme.disabledOnSurface
-    }
+    val textColor = baseTextColor
+    val hintColor = NexioTheme.colorScheme.onSurfaceVariantActions
 
     TextFieldShell(
         text = value.text,
@@ -252,16 +244,13 @@ private fun TextFieldShell(
     content: @Composable () -> Unit,
 ) {
     val themeColor = NexioTheme.colorScheme.primary
-    val backgroundColor = if (enabled) {
-        NexioTheme.colorScheme.surfaceVariant
+    // 对话框内面板本身已偏亮/偏暗，沿用 secondaryContainer 会糊成一片，改用半透明叠加色。
+    val backgroundColor = if (LocalNexioTextFieldInDialog.current) {
+        if (NexioTheme.isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)
     } else {
-        NexioTheme.colorScheme.disabledSecondary
+        NexioTheme.colorScheme.secondaryContainer
     }
-    val labelColor = if (enabled) {
-        NexioTheme.colorScheme.onSurfaceVariantSummary
-    } else {
-        NexioTheme.colorScheme.disabledOnSurface
-    }
+    val labelColor = NexioTheme.colorScheme.onSurfaceVariantActions
 
     val labelState = remember(text, label, useLabelAsPlaceholder) {
         when {

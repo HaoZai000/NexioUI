@@ -21,10 +21,10 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.getValue
@@ -63,6 +63,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import com.haooz.nexioui.material.NexioGlassStyle
 import com.haooz.nexioui.material.NexioMaterial
 import com.haooz.nexioui.text.NexioText
+import com.haooz.nexioui.textfield.LocalNexioTextFieldInDialog
 import com.haooz.nexioui.theme.NexioTheme
 import com.haooz.softglass.backdrop.GlassBackdrop
 import com.haooz.softglass.backdrop.GlassEffectScope
@@ -471,7 +472,10 @@ internal fun DialogContent(
                     textAlign = TextAlign.Center,
                 )
             }
-            content()
+            // 对话框内的输入框底色改用半透明叠加色（见 LocalNexioTextFieldInDialog）。
+            CompositionLocalProvider(LocalNexioTextFieldInDialog provides true) {
+                content()
+            }
         }
     }
 }

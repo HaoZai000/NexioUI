@@ -1,6 +1,7 @@
 package com.haooz.nexioui.textfield
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
@@ -8,6 +9,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.haooz.nexioui.theme.NexioTheme
+
+/**
+ * 输入框是否位于 [com.haooz.nexioui.overlaydialog.OverlayDialog] 内。
+ *
+ * 对话框自身底色已经偏亮/偏暗，输入框在上面沿用 `secondaryContainer` 会糊成一片，
+ * 因此对话框内改用一层半透明叠加色（浅色 6% 黑 / 深色 10% 白）。
+ */
+internal val LocalNexioTextFieldInDialog = staticCompositionLocalOf { false }
 
 /**
  * 输入框：连续圆角背景 + 浮动标签 + 聚焦主色描边。

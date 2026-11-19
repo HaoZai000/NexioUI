@@ -117,16 +117,13 @@ actual fun TextField(
     }
 
     val themeColor = NexioTheme.colorScheme.primary
-    val backgroundColor = if (enabled) {
-        NexioTheme.colorScheme.surfaceVariant
+    // 对话框内面板本身已偏亮/偏暗，沿用 secondaryContainer 会糊成一片，改用半透明叠加色。
+    val backgroundColor = if (LocalNexioTextFieldInDialog.current) {
+        if (NexioTheme.isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)
     } else {
-        NexioTheme.colorScheme.disabledSecondary
+        NexioTheme.colorScheme.secondaryContainer
     }
-    val labelColor = if (enabled) {
-        NexioTheme.colorScheme.onSurfaceVariantSummary
-    } else {
-        NexioTheme.colorScheme.disabledOnSurface
-    }
+    val labelColor = NexioTheme.colorScheme.onSurfaceVariantActions
 
     val borderColor by animateColorAsState(
         if (isFocused.value) themeColor else Color.Transparent
@@ -160,10 +157,9 @@ actual fun TextField(
         }
     }
 
-    val baseTextColor = textStyle.color.takeIf { it != Color.Unspecified }
+    val textColor = textStyle.color.takeIf { it != Color.Unspecified }
         ?: NexioTheme.colorScheme.onSurface
-    val textColor = if (enabled) baseTextColor else NexioTheme.colorScheme.disabledOnSurface
-    val hintColor = labelColor
+    val hintColor = NexioTheme.colorScheme.onSurfaceVariantActions
     val weight = textStyle.fontWeight?.weight ?: FontWeight.Medium.weight
 
     Box(
@@ -346,16 +342,13 @@ actual fun TextField(
     }
 
     val themeColor = NexioTheme.colorScheme.primary
-    val backgroundColor = if (enabled) {
-        NexioTheme.colorScheme.surfaceVariant
+    // 对话框内面板本身已偏亮/偏暗，沿用 secondaryContainer 会糊成一片，改用半透明叠加色。
+    val backgroundColor = if (LocalNexioTextFieldInDialog.current) {
+        if (NexioTheme.isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)
     } else {
-        NexioTheme.colorScheme.disabledSecondary
+        NexioTheme.colorScheme.secondaryContainer
     }
-    val labelColor = if (enabled) {
-        NexioTheme.colorScheme.onSurfaceVariantSummary
-    } else {
-        NexioTheme.colorScheme.disabledOnSurface
-    }
+    val labelColor = NexioTheme.colorScheme.onSurfaceVariantActions
 
     val borderColor by animateColorAsState(
         if (isFocused.value) themeColor else Color.Transparent
@@ -376,10 +369,9 @@ actual fun TextField(
         },
     )
 
-    val baseTextColor = textStyle.color.takeIf { it != Color.Unspecified }
+    val textColor = textStyle.color.takeIf { it != Color.Unspecified }
         ?: NexioTheme.colorScheme.onSurface
-    val textColor = if (enabled) baseTextColor else NexioTheme.colorScheme.disabledOnSurface
-    val hintColor = labelColor
+    val hintColor = NexioTheme.colorScheme.onSurfaceVariantActions
     val weight = textStyle.fontWeight?.weight ?: FontWeight.Medium.weight
 
     Box(

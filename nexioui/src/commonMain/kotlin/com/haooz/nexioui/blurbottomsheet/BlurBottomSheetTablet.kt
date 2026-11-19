@@ -154,7 +154,14 @@ private fun BlurBottomSheetTabletContent(
     }
 
     val isDark = NexioTheme.isDark
-    val sheetBgColor = sheetBackgroundColor ?: NexioTheme.colorScheme.surfaceContainer
+    // 与手机端一致：莫奈取色跟随 surfaceContainer，非莫奈保持硬编码中性色。
+    val sheetBgColor = sheetBackgroundColor ?: if (NexioTheme.isDynamicColor) {
+        NexioTheme.colorScheme.surfaceContainer
+    } else if (isDark) {
+        Color(0xFF1E1E1E)
+    } else {
+        Color(0xFFF2F2F2)
+    }
 
     LaunchedEffect(show) {
         if (show) {

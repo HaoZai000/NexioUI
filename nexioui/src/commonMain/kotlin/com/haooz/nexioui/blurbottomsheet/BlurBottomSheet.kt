@@ -186,7 +186,14 @@ private fun BlurBottomSheetContent(
     }
 
     val isDark = NexioTheme.isDark
-    val sheetBgColor = sheetBackgroundColor ?: NexioTheme.colorScheme.surfaceContainer
+    // sheet 底色：莫奈取色跟随 surfaceContainer；非莫奈保持硬编码（暗 #1E1E1E / 亮 #F2F2F2）。
+    val sheetBgColor = sheetBackgroundColor ?: if (NexioTheme.isDynamicColor) {
+        NexioTheme.colorScheme.surfaceContainer
+    } else if (isDark) {
+        Color(0xFF1E1E1E)
+    } else {
+        Color(0xFFF2F2F2)
+    }
     val dismissThresholdPx = with(density) { 150.dp.toPx() }
     val velocityThresholdPx = with(density) { 800.dp.toPx() }
 

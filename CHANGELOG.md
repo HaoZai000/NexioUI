@@ -2,6 +2,20 @@
 
 本项目的所有重要变更都会记录在这里。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.1.1] - 2026-11-19
+
+### 新增
+
+- Slider：`settleToKeyPoints` 锚点吸附模式，抬手、甩动、点按都直接落到最近锚点；手势与键盘逻辑拆成独立 Modifier。
+- 下拉菜单：重写弹层布局，接入预测性返回手势。
+
+### 修复
+
+- 下拉退场多留一帧，底部弹窗恢复非莫奈中性底色。
+- ArrowPreference 恢复箭头右侧间距。
+- Background 恢复调用方传入的 `presetOverride`。
+- 仓库更名为 NexioUI，iOS CI 改为拉取 SoftGlass 源码。
+
 ## [0.1.0] - 2026-11-18
 
 首个公开版本。

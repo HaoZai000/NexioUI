@@ -30,7 +30,7 @@ object SmallTitleDefaults {
 fun SmallTitle(
     text: String,
     modifier: Modifier = Modifier,
-    textColor: Color = NexioTheme.colorScheme.onSurfaceVariantSummary,
+    textColor: Color = Color(0xFF8F9CAE),
     insideMargin: PaddingValues = SmallTitleDefaults.InsideMargin,
     hasWallpaper: Boolean = false,
 ) {

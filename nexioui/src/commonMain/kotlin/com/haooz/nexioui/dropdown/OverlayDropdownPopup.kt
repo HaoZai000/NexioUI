@@ -124,6 +124,7 @@ fun OverlayDropdownPopup(
         collapseExtra = collapseExtra,
         collapseContent = collapseContent,
         dragSelectState = dragSelectState,
+        renderInRootScaffold = renderInRootScaffold,
     ) {
         DropdownEntriesColumn(
             onFitsOnScreen = { fits -> dragSelectState?.fitsOnScreen = fits },

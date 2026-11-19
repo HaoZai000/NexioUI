@@ -4,24 +4,28 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -38,13 +42,16 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -54,12 +61,15 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import com.haooz.nexioui.interaction.InteractiveHighlight
 import com.haooz.nexioui.internal.drawBlurredPathShadow
 import com.haooz.nexioui.material.NexioMaterial
+import com.haooz.nexioui.navigationback.LocalNexioPredictiveBackEnabled
+import com.haooz.nexioui.navigationback.rememberNavigationBack
+import com.haooz.nexioui.overlaydialog.LocalNexioDialogStates
+import com.haooz.nexioui.overlaydialog.LocalNexioRootDialogStates
+import com.haooz.nexioui.overlaydialog.NexioDialogEntry
 import com.haooz.nexioui.theme.NexioTheme
 import com.haooz.softglass.backdrop.GlassBackdrop
 import com.haooz.softglass.backdrop.GlassEffectScope
@@ -86,6 +96,8 @@ private val OriginEnterAnimSpec =
     spring<Float>(dampingRatio = 0.77f, stiffness = 420f, visibilityThreshold = 0.0001f)
 private val OriginExitAnimSpec =
     tween<Float>(340, easing = CubicBezierEasing(0.0f, 0.0f, 0.0f, 1.0f))
+/** 预测性返回取消后弹回展开态 */
+private val BackCancelAnimSpec = tween<Float>(150)
 
 /** 面板圆角。 */
 private val PanelCornerRadius = 25.dp
@@ -189,7 +201,11 @@ private class DropdownPopupPositionProvider(
 }
 
 /**
- * 弹层宿主：负责进出场动画、窗口层定位与面板绘制。
+ * 弹层宿主：负责进出场动画、锚点定位与面板绘制。
+ *
+ * 与对话框一样挂进 Scaffold 的弹层宿主，在同一个窗口里绘制 —— 不用独立 `Popup` 窗口。
+ * 独立窗口拿不到宿主窗口的 NavigationEventDispatcher（返回键 / 预测性返回全部失效），
+ * 而且窗口销毁晚于组合，退场时会闪一帧空白。
  */
 @Composable
 internal fun DropdownPopupLayout(
@@ -203,6 +219,7 @@ internal fun DropdownPopupLayout(
     collapseExtra: DpSize,
     collapseContent: (@Composable () -> Unit)?,
     dragSelectState: DropdownPanelDragSelectState?,
+    renderInRootScaffold: Boolean = true,
     alignEnd: Boolean = true,
     anchorOffsetX: Dp = DropdownAnchorOffsetX,
     anchorOffsetY: Dp = DropdownAnchorOffsetY,
@@ -210,9 +227,52 @@ internal fun DropdownPopupLayout(
 ) {
     val fractionProgress = remember { Animatable(0f) }
     val originProgress = remember { Animatable(0f) }
+    val backProgress = remember { Animatable(0f) }
+    val backScope = rememberCoroutineScope()
     val currentOnDismiss by rememberUpdatedState(onDismissRequest)
     val currentOnDismissFinished by rememberUpdatedState(onDismissFinished)
     val internalVisible = remember { mutableStateOf(false) }
+
+    // 锚点：本组合位于触发区所在行内，父节点就是触发区。取窗口坐标供弹层定位。
+    val anchorBounds = remember { mutableStateOf(IntRect.Zero) }
+    Spacer(
+        modifier = Modifier.onGloballyPositioned { coordinates ->
+            val parent = coordinates.parentLayoutCoordinates ?: return@onGloballyPositioned
+            val position = parent.positionInWindow()
+            anchorBounds.value = IntRect(
+                left = position.x.roundToInt(),
+                top = position.y.roundToInt(),
+                right = position.x.roundToInt() + parent.size.width,
+                bottom = position.y.roundToInt() + parent.size.height,
+            )
+        },
+    )
+
+    val navBackState = rememberNavigationBack()
+    val predictiveBackEnabled = LocalNexioPredictiveBackEnabled.current
+    navBackState.handler(
+        enabled = show,
+        onBackCompleted = { currentOnDismiss.invoke() },
+        onBackCancelled = {
+            backScope.launch {
+                if (backProgress.value > 0f) {
+                    fractionProgress.animateTo(1f, BackCancelAnimSpec)
+                    originProgress.animateTo(1f, BackCancelAnimSpec)
+                    backProgress.snapTo(0f)
+                }
+            }
+        },
+    )
+    // 手势进度逐帧驱动；单独协程避免手势期间反复取消/重启 LaunchedEffect
+    LaunchedEffect(Unit) {
+        snapshotFlow { navBackState.backProgress() }.collect { progress ->
+            if (progress != null && predictiveBackEnabled) {
+                backProgress.snapTo(progress)
+                fractionProgress.snapTo(1f - progress)
+                originProgress.snapTo(1f - progress)
+            }
+        }
+    }
 
     LaunchedEffect(show) {
         if (show) {
@@ -226,9 +286,6 @@ internal fun DropdownPopupLayout(
             originProgress.animateTo(0f, OriginExitAnimSpec)
             fractionProgress.snapTo(0f)
             originProgress.snapTo(0f)
-            // 退场结束先多留一帧再隐藏
-            withFrameNanos { }
-            withFrameNanos { }
             internalVisible.value = false
             currentOnDismissFinished.invoke()
         }
@@ -243,9 +300,64 @@ internal fun DropdownPopupLayout(
 
     if (!show && !internalVisible.value) return
 
+    // 弹层列表：与对话框同一份，renderInRootScaffold 时挂到最外层 Scaffold。
+    val states = if (renderInRootScaffold) {
+        LocalNexioRootDialogStates.current ?: LocalNexioDialogStates.current
+    } else {
+        LocalNexioDialogStates.current
+    } ?: return
+
+    val entry = remember { NexioDialogEntry() }
+    SideEffect {
+        entry.content = {
+            DropdownPopupOverlay(
+                show = show,
+                anchorBounds = { anchorBounds.value },
+                maxHeight = maxHeight,
+                liquidGlassBackdrop = liquidGlassBackdrop,
+                fractionProgress = { fractionProgress.value },
+                originProgress = { originProgress.value },
+                onDismissRequest = { currentOnDismiss.invoke() },
+                collapseSize = collapseSize,
+                collapseExtra = collapseExtra,
+                collapseContent = collapseContent,
+                dragSelectState = dragSelectState,
+                alignEnd = alignEnd,
+                anchorOffsetX = anchorOffsetX,
+                anchorOffsetY = anchorOffsetY,
+                content = content,
+            )
+        }
+    }
+    DisposableEffect(states, entry) {
+        states.add(entry)
+        onDispose { states.remove(entry) }
+    }
+}
+
+/** 弹层窗口内容：铺满宿主，空白处点击关闭，面板按锚点位置摆放。 */
+@Composable
+private fun DropdownPopupOverlay(
+    show: Boolean,
+    anchorBounds: () -> IntRect,
+    maxHeight: Dp?,
+    liquidGlassBackdrop: GlassBackdrop?,
+    fractionProgress: () -> Float,
+    originProgress: () -> Float,
+    onDismissRequest: () -> Unit,
+    collapseSize: IntSize?,
+    collapseExtra: DpSize,
+    collapseContent: (@Composable () -> Unit)?,
+    dragSelectState: DropdownPanelDragSelectState?,
+    alignEnd: Boolean,
+    anchorOffsetX: Dp,
+    anchorOffsetY: Dp,
+    content: @Composable () -> Unit,
+) {
     val anchors = remember { DropdownPopupAnchors() }
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val windowInfo = LocalWindowInfo.current
     val safeDrawing = WindowInsets.safeDrawing
     val safeTop = safeDrawing.getTop(density)
     val safeBottom = safeDrawing.getBottom(density)
@@ -265,23 +377,41 @@ internal fun DropdownPopupLayout(
             anchors = anchors,
         )
     }
+    var hostPositionInWindow by remember { mutableStateOf(Offset.Zero) }
 
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = { currentOnDismiss.invoke() },
-        properties = PopupProperties(
-            focusable = true,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            clippingEnabled = false,
-            usePlatformDefaultWidth = false,
-        ),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { hostPositionInWindow = it.positionInWindow() }
+            .pointerInput(Unit) { detectTapGestures { onDismissRequest() } }
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(
+                    constraints.copy(minWidth = 0, minHeight = 0),
+                )
+                val anchor = anchorBounds()
+                if (anchor == IntRect.Zero) {
+                    layout(constraints.maxWidth, constraints.maxHeight) { }
+                } else {
+                    val offset = positionProvider.calculatePosition(
+                        anchorBounds = anchor,
+                        windowSize = windowInfo.containerSize,
+                        layoutDirection = layoutDirection,
+                        popupContentSize = IntSize(placeable.width, placeable.height),
+                    )
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        placeable.place(
+                            offset.x - hostPositionInWindow.x.roundToInt(),
+                            offset.y - hostPositionInWindow.y.roundToInt(),
+                        )
+                    }
+                }
+            },
     ) {
         DropdownPopupPanel(
             show = show,
             maxHeight = maxHeight,
-            fractionProgress = { fractionProgress.value },
-            originProgress = { originProgress.value },
+            fractionProgress = fractionProgress,
+            originProgress = originProgress,
             anchors = anchors,
             liquidGlassBackdrop = liquidGlassBackdrop,
             collapseSize = collapseSize,

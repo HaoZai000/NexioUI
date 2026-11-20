@@ -2,8 +2,6 @@
 
 package com.haooz.nexioui.switch
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -32,11 +30,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,8 +62,10 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.haooz.nexioui.internal.drawBlurredPathShadow
 import com.haooz.nexioui.theme.NexioTheme
 import com.haooz.softglass.shape.ContinuousCapsule
+import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Clock
 
 /**
@@ -114,13 +121,10 @@ fun Switch(
 
     val hovered by source.collectIsHoveredAsState()
     val pressed by source.collectIsPressedAsState()
-    val hoverProgress by animateFloatAsState(if (enabled && hovered) 1f else 0f)
-    val pressProgress by animateFloatAsState(
-        if (enabled && (pressed || touchPressed)) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.84f, stiffness = 420f),
-    )
     val focused by source.collectIsFocusedAsState()
-    val focusProgress by animateFloatAsState(if (enabled && focused) 1f else 0f)
+    val hoverProgress = rememberSwitchFeedback(enabled && hovered, scope)
+    val pressProgress = rememberSwitchFeedback(enabled && (pressed || touchPressed), scope)
+    val focusProgress = rememberSwitchFeedback(enabled && focused, scope)
 
     val interactionInput = if (onCheckedChange != null) {
         Modifier.pointerInput(enabled, state, touchSlop) {
@@ -193,6 +197,7 @@ fun Switch(
     }
 
     val shape = ContinuousCapsule
+    val thumbShadow = remember { ThumbShadowPath() }
     Box(
         modifier
             .then(semanticsInput)
@@ -202,16 +207,19 @@ fun Switch(
             .semantics { if (state.stretch > 1f) stateDescription = "切换中" }
             .wrapContentSize(Alignment.Center)
             .requiredSize(SwitchDefaults.width, SwitchDefaults.height)
-            .drawBehind {
-                if (focusProgress > 0f) {
-                    val stroke = 3.dp.toPx()
-                    drawRoundRect(
-                        color = colors.focusOutline.copy(alpha = colors.focusOutline.alpha * focusProgress),
-                        topLeft = Offset(-stroke / 2, -stroke / 2),
-                        size = Size(size.width + stroke, size.height + stroke),
-                        cornerRadius = CornerRadius((size.height + stroke) / 2),
-                        style = Stroke(stroke),
-                    )
+            .drawWithCache {
+                val outlinePath = (shape.createOutline(size, layoutDirection, this) as? Outline.Generic)?.path
+                val stroke = Stroke(3.dp.toPx().toInt() * 2f)
+                onDrawBehind {
+                    if (enabled) outlinePath?.let { path ->
+                        clipPath(path, ClipOp.Difference) {
+                            drawPath(
+                                path,
+                                colors.focusOutline.copy(alpha = colors.focusOutline.alpha * focusProgress()),
+                                style = stroke,
+                            )
+                        }
+                    }
                 }
             }
             .clip(shape)
@@ -220,12 +228,10 @@ fun Switch(
                     lerp(colors.uncheckedTrackColor, colors.checkedTrackColor, state.fraction)
                 } else if (checked) colors.disabledCheckedTrackColor else colors.disabledUncheckedTrackColor
                 drawRect(track)
-                if (hoverProgress > 0f) {
-                    drawRect(lerp(Color.Transparent, colors.hoverOverlay, hoverProgress))
-                }
-                if (pressProgress > 0f) {
-                    drawRect(lerp(Color.Transparent, colors.pressOverlay, pressProgress))
-                }
+                val hover = hoverProgress()
+                if (hover > 0f) drawRect(lerp(Color.Transparent, colors.hoverOverlay, hover))
+                val press = pressProgress()
+                if (press > 0f) drawRect(lerp(Color.Transparent, colors.pressOverlay, press))
             },
     ) {
         Canvas(Modifier.requiredSize(SwitchDefaults.width, SwitchDefaults.height)) {
@@ -237,18 +243,13 @@ fun Switch(
             val y = (size.height - thumbPx) / 2f
             val radius = CornerRadius(thumbPx / 2f)
             if (enabled) {
-                drawRoundRect(
-                    color = Color.Black.copy(alpha = 0.06f * (1f - pressProgress)),
-                    topLeft = Offset(x, y + 3.dp.toPx()),
-                    size = Size(stretched, thumbPx),
-                    cornerRadius = radius,
-                )
-                drawRoundRect(
-                    color = Color.Black.copy(alpha = 0.10f * (1f - pressProgress)),
-                    topLeft = Offset(x, y + 1.5.dp.toPx()),
-                    size = Size(stretched, thumbPx),
-                    cornerRadius = radius,
-                )
+                translate(x, y + ThumbShadowOffsetPx) {
+                    drawBlurredPathShadow(
+                        thumbShadow.path(Size(stretched, thumbPx)),
+                        ThumbShadowColor,
+                        ThumbShadowBlurPx,
+                    )
+                }
             }
             drawRoundRect(
                 color = thumbColor,
@@ -311,3 +312,69 @@ data class SwitchColors(
     val pressOverlay: Color = Color.Transparent,
     val focusOutline: Color = Color.Transparent,
 )
+
+private val ThumbShadowColor = Color(0x19000000)
+private const val ThumbShadowBlurPx = 8f
+private const val ThumbShadowOffsetPx = 4f
+
+/** 静止时复用同一条 Path，只有 thumb 尺寸变化才重建。 */
+private class ThumbShadowPath {
+    private var previous = Size.Zero
+    private var cached = Path()
+
+    fun path(size: Size): Path {
+        if (size != previous) {
+            previous = size
+            cached = Path().apply {
+                addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(size.height / 2f)))
+            }
+        }
+        return cached
+    }
+}
+
+@Composable
+private fun rememberSwitchFeedback(active: Boolean, scope: CoroutineScope): () -> Float {
+    val effect = remember(scope) { SwitchFeedbackProgress(scope) }
+    SideEffect { effect.setActive(active) }
+    DisposableEffect(effect) { onDispose { effect.dispose() } }
+    return { effect.value }
+}
+
+/** 对齐 COUI CouiStateProgress：response .3 临界阻尼，短按保底 70% 再退场。 */
+private class SwitchFeedbackProgress(scope: CoroutineScope) {
+    private val spring = CouiSpring(0f, scope)
+    private var active = false
+    private var pendingRelease = false
+    val value: Float get() = spring.value / ProgressMax
+
+    fun setActive(next: Boolean) {
+        if (active == next) return
+        active = next
+        if (!next && spring.isRunning && spring.value <= MinimumPress) {
+            pendingRelease = true
+        } else {
+            pendingRelease = false
+            animate(if (next) ProgressMax else 0f)
+        }
+    }
+
+    private fun animate(target: Float) {
+        spring.animateTo(target, response = 0.3f, onEnd = {
+            if (pendingRelease) {
+                pendingRelease = false
+                animate(0f)
+            }
+        })
+    }
+
+    fun dispose() {
+        pendingRelease = false
+        spring.cancelComplete()
+    }
+
+    private companion object {
+        const val ProgressMax = 10_000f
+        const val MinimumPress = 7_000f
+    }
+}

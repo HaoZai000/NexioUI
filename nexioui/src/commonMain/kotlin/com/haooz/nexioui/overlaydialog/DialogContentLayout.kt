@@ -323,10 +323,7 @@ internal fun DialogContent(
     val contentAlignment = remember(isLargeScreen) {
         if (isLargeScreen) Alignment.Center else Alignment.BottomCenter
     }
-    val bottomCornerRadius = remember(isLargeScreen, outsideMargin.width) {
-        val offset = if (isLargeScreen) 0.dp else outsideMargin.width
-        (DialogDefaults.screenCornerRadius - offset).coerceAtLeast(32.dp)
-    }
+    val dialogCornerRadius = DialogDefaults.CornerRadius
     val currentOnDismiss by rememberUpdatedState(onDismissRequest)
 
     val safeDrawingInsets = WindowInsets.safeDrawing
@@ -358,7 +355,7 @@ internal fun DialogContent(
         fill = BarFill,
         tone = BrightLargeTone,
     )
-    val cornerRadiusPx = with(density) { bottomCornerRadius.toPx() }
+    val cornerRadiusPx = with(density) { dialogCornerRadius.toPx() }
     // drawBackdrop 按引用比较 effects，lambda 每帧新建会让节点重新录制采样层。
     val dialogEffects: GlassEffectScope.() -> Unit = remember(glassActive, dialogBlur, glassStyle, cornerRadiusPx) {
         {
@@ -379,8 +376,8 @@ internal fun DialogContent(
             }
         }
     }
-    val dialogShapeBlock: () -> Shape = remember(bottomCornerRadius) {
-        { ContinuousRoundedRectangle(bottomCornerRadius) }
+    val dialogShapeBlock: () -> Shape = remember(dialogCornerRadius) {
+        { ContinuousRoundedRectangle(dialogCornerRadius) }
     }
 
     val contentModifier = modifier
@@ -407,7 +404,7 @@ internal fun DialogContent(
         .pointerInput(Unit) {
             detectTapGestures { /* 消费面板内的点击 */ }
         }
-        .clip(ContinuousRoundedRectangle(bottomCornerRadius))
+        .clip(ContinuousRoundedRectangle(dialogCornerRadius))
         .then(
             if (glassActive) {
                 Modifier.drawBackdrop(
@@ -422,7 +419,7 @@ internal fun DialogContent(
         .background(
             // 玻璃自己画底色与折射；无玻璃时用实色保证文字对比度。
             color = if (glassActive) Color.Transparent else backgroundColor,
-            shape = ContinuousRoundedRectangle(bottomCornerRadius),
+            shape = ContinuousRoundedRectangle(dialogCornerRadius),
         )
         .padding(horizontal = insideMargin.width, vertical = insideMargin.height)
 

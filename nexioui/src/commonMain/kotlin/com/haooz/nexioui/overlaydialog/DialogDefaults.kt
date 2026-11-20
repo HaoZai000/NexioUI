@@ -20,8 +20,8 @@ object DialogDefaults {
     /** 弹窗内部留白。 */
     val insideMargin = DpSize(24.dp, 24.dp)
 
-    /** 屏幕圆角，用于贴底时的下圆角收缩。 */
-    val screenCornerRadius = 48.dp
+    /** 弹窗圆角 */
+    val CornerRadius = 42.dp
 
     /** 标题颜色。 */
     @Composable

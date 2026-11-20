@@ -4,12 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,11 +36,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,9 +54,17 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -63,9 +78,15 @@ import com.haooz.nexioui.icon.extended.VerticalSplit
 import com.haooz.nexioui.interaction.InteractiveHighlight
 import com.haooz.nexioui.material.NexioGlassStyle
 import com.haooz.nexioui.material.NexioMaterial
+import com.haooz.nexioui.capsuleslider.CapsuleFlingTracker
 import com.haooz.nexioui.capsuleslider.CapsuleSelector
 import com.haooz.nexioui.capsuleslider.CapsuleSlider
 import com.haooz.nexioui.capsuleslider.capsuleSliderPill
+import com.haooz.nexioui.dropdown.DropdownMaskMode
+import com.haooz.nexioui.dropdown.DropdownPanelDragSelectState
+import com.haooz.nexioui.dropdown.dropdownPanelDragSelect
+import com.haooz.nexioui.dropdown.dropdownPanelSlidingMask
+import com.haooz.nexioui.dropdown.dropdownPanelEntry
 import com.haooz.nexioui.text.NexioText
 import com.haooz.nexioui.theme.NexioTheme
 import com.haooz.softglass.backdrop.GlassBackdrop
@@ -78,10 +99,13 @@ import com.haooz.softglass.glass.BrightLargeTone
 import com.haooz.softglass.glass.SOFT_GLASS_LIVE_SHADER
 import com.haooz.softglass.glass.applySoftGlass
 import com.haooz.softglass.shape.ContinuousCapsule
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /** 面板柔光 shader 的缓存键：宽度逐帧变化，uniform 在 draw 期按当前尺寸重灌。 */
@@ -90,6 +114,15 @@ private const val LIVE_TABLET_NAV_GLASS_KEY = "NexioSoftGlassLiveTabletNav"
 private val TabletNavExpandSpec = spring<Float>(
     dampingRatio = Spring.DampingRatioNoBouncy,
     stiffness = Spring.StiffnessMediumLow,
+)
+
+/**
+ * 分组项图标上移专用弹簧——比遮罩软一档，只作用于图标
+ */
+private val TabletNavIconLiftSpring = spring<Float>(
+    dampingRatio = 0.85f,
+    stiffness = 240f,
+    visibilityThreshold = 0.01f,
 )
 
 /** 侧栏条目。 */
@@ -149,12 +182,9 @@ fun TabletNavigation(
     val interactiveHighlight = remember(animationScope, state, isDark) {
         InteractiveHighlight(
             animationScope = animationScope,
-            // 胶囊只有 50dp 高，按展开进度反向补偿，顶栏再放大一档
-            radiusScale = {
-                val expand = state.expandProgress.floatValue.coerceIn(0f, 1f)
-                val morph = state.morphProgress.floatValue.coerceIn(0f, 1f)
-                (0.7f - 0.3f * expand) * (1f + 1.4f * morph)
-            },
+            // 三态统一：折叠侧栏 / 展开侧栏 / 顶栏都用同一个光斑半径倍率，
+            // 不随展开或形变进度缩放。
+            radiusScale = { 0.7f },
             radiusBaseDp = 150.dp,
             isDark = { isDark },
         )
@@ -264,6 +294,13 @@ fun TabletNavigation(
 
     val topBarMode = state.topBarMode
     val panelStartInset = TabletNavDefaults.SideInset
+
+    // 整个侧栏形态（展开 + 折叠图标轨）共用一套滑选与遮罩，形态切换时遮罩不重建；
+    // 顶栏胶囊是独立形态，另走 TabletNavTopBarGestures。
+    val dragSelectEnabled = !topBarMode
+    val dragSelectState = remember {
+        DropdownPanelDragSelectState(maskMode = DropdownMaskMode.Sliding)
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isPortrait = maxHeight > maxWidth
@@ -404,12 +441,37 @@ fun TabletNavigation(
                         selected = false,
                         textColor = textColor,
                         showLabel = false,
+                        clickableEnabled = !topBarMode,
                         onClick = { state.expanded = !state.expanded },
                     )
                 }
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (dragSelectEnabled) {
+                                Modifier
+                                    .dropdownPanelDragSelect(
+                                        state = dragSelectState,
+                                        // 展开 / 折叠全程就绪；只在形变到顶栏途中让位
+                                        fraction = {
+                                            1f - state.morphProgress.floatValue.coerceAtLeast(0f)
+                                        },
+                                        hapticFeedback = LocalHapticFeedback.current,
+                                    )
+                                    .dropdownPanelSlidingMask(
+                                        dragSelectState,
+                                        shape = ContinuousCapsule(),
+                                        highlightPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                    )
+                                    .onGloballyPositioned { coords ->
+                                        val bounds = coords.boundsInRoot()
+                                        dragSelectState.panelTopInRoot = bounds.top
+                                        dragSelectState.panelLeftInRoot = bounds.left
+                                    }
+                            } else Modifier
+                        ),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     items.forEachIndexed { index, item ->
@@ -476,29 +538,45 @@ fun TabletNavigation(
                         }
 
                         Box(modifier = morphItem) {
+                            // 分组项折叠时选中态上移补掉分组标题与组内空行。
+                            // targetValue 直接带折叠状态：展开=0、折叠=liftPx，切换选中项也在这里
+                            // 一起落，整段位移只走 TabletNavIconLiftSpring，不再乘 expandProgress
+                            // （那条由 TabletNavExpandSpec 驱动，会把折叠速率带偏）。
+                            val liftPx = if (groupStart != null) {
+                                (groupHeaderHeights[groupStart] ?: 0f) + extraOffsetPx
+                            } else 0f
+                            val lift = animateFloatAsState(
+                                targetValue = if (
+                                    groupStart != null &&
+                                    index == selectedIndex &&
+                                    !state.expanded
+                                ) {
+                                    liftPx
+                                } else 0f,
+                                animationSpec = TabletNavIconLiftSpring,
+                                label = "tabletNavItemLift",
+                            )
                             Box(
-                                modifier = Modifier.graphicsLayer {
-                                    val p = state.expandProgress.floatValue
-                                    val morph = state.morphProgress.floatValue
-                                    if (groupStart != null) {
-                                        // 折叠时选中项上移补掉分组标题与组内空行；未选中原地淡出
-                                        translationY =
-                                            if (index == selectedIndex) {
-                                                -(1f - p) * (
-                                                    (groupHeaderHeights[groupStart] ?: 0f) +
-                                                        extraOffsetPx
-                                                    )
-                                            } else {
-                                                0f
-                                            }
-                                        alpha = (if (index == selectedIndex) 1f else p) *
-                                            (1f - morph)
-                                    } else if (!item.inTopBar) {
-                                        // 不进顶栏的项随形变淡出
-                                        alpha = 1f - morph
+                                modifier = Modifier
+                                    .offset {
+                                        IntOffset(0, -lift.value.roundToInt())
                                     }
-                                }
+                                    .graphicsLayer {
+                                        val p = state.expandProgress.floatValue
+                                        val morph = state.morphProgress.floatValue
+                                        if (groupStart != null) {
+                                            alpha = (if (index == selectedIndex) 1f else p) *
+                                                (1f - morph)
+                                        } else if (!item.inTopBar) {
+                                            // 不进顶栏的项随形变淡出
+                                            alpha = 1f - morph
+                                        }
+                                    }
                             ) {
+                                // 折叠轨上 inTopBar 项与选中项均可见，应可点可滑；
+                                // 未选中的分组项 alpha=0 不可点
+                                val itemEnabled = state.expanded ||
+                                    item.inTopBar || index == selectedIndex
                                 TabletNavSideItem(
                                     state = state,
                                     icon = item.icon,
@@ -509,10 +587,10 @@ fun TabletNavigation(
                                     showLabel = true,
                                     labelFontWeight = FontWeight.Normal,
                                     progress = { tabletNavItemProgress(morphMotion, index) },
-                                    // 折叠态未选中的分组项不可点，避免点到看不见的项
-                                    clickableEnabled = state.expanded || index == selectedIndex,
+                                    clickableEnabled = !topBarMode && itemEnabled,
+                                    dragSelectEntry = if (dragSelectEnabled) dragSelectState else null,
                                     onClick = {
-                                        if (state.expanded || index == selectedIndex) {
+                                        if (!topBarMode && itemEnabled) {
                                             onSelect(index)
                                         }
                                     },
@@ -629,9 +707,10 @@ private fun TabletNavExpandAnimator(state: TabletNavState) {
 }
 
 /**
- * 顶栏胶囊的滑块与点击区。
+ * 顶栏胶囊的滑块与手势区。
  *
- * 只保留点击：点某一格命中后回调，胶囊吸附到该格；没有拖动与滑选。
+ * 与 [com.haooz.nexioui.segmentedcontrol.SegmentedControl] 同款：
+ * 按在滑块上拖动跟手 + 拖尾、点格子切换、快甩补一格，松手吸附。
  */
 @Composable
 private fun TabletNavTopBarStrip(
@@ -644,6 +723,8 @@ private fun TabletNavTopBarStrip(
     pressProgress: () -> Float,
 ) {
     val density = LocalDensity.current
+    val viewConfiguration = LocalViewConfiguration.current
+    val hapticFeedback = LocalHapticFeedback.current
     val animationScope = rememberCoroutineScope()
     val count = topBarIndices.size
     val selectorInsetPx = with(density) { CapsuleSlider.Inset.toPx() }
@@ -652,24 +733,45 @@ private fun TabletNavTopBarStrip(
     }
     val selectorWidthPx = tabWidthPx - selectorInsetPx * 2f
     val stripRightPx = stripLeftPx + count * tabWidthPx
-    val selectedSlot = topBarIndices.indexOf(selectedIndex).coerceAtLeast(0)
+    val trailMaxPx = with(density) { CapsuleSlider.TrailMax.toPx() }
+    val flingVelocityThreshold =
+        with(density) { CapsuleSlider.FlingVelocityDpPerSecond.toPx() }
+    val selectedSlot = (topBarIndices.indexOf(selectedIndex).coerceAtLeast(0))
+        .coerceIn(0, (count - 1).coerceAtLeast(0))
 
-    fun slotLeft(index: Int): Float = stripLeftPx + index * tabWidthPx + selectorInsetPx
+    fun slotLeft(slot: Int): Float = stripLeftPx + slot * tabWidthPx + selectorInsetPx
+
+    var currentSlot by remember { mutableIntStateOf(selectedSlot) }
+    val latestSelectedSlot by rememberUpdatedState(selectedSlot)
+    val latestOnSelect by rememberUpdatedState(onSelect)
 
     val capsule = remember(animationScope, count, tabWidthPx, stripLeftPx, selectorWidthPx) {
         CapsuleSelector(
             scope = animationScope,
             widthPx = selectorWidthPx,
-            startLeftPx = slotLeft(selectedSlot),
+            startLeftPx = slotLeft(currentSlot),
             leftLimit = { stripLeftPx..(stripRightPx - selectorWidthPx) },
         )
     }
-    LaunchedEffect(capsule, selectedSlot) {
-        val target = slotLeft(selectedSlot)
+    val settleToSlot: (Int) -> Unit = { slot ->
+        val target = slotLeft(slot)
         capsule.settleTo(target, forward = target > capsule.leftPx)
     }
+    val slotAtCapsule: () -> Int = {
+        ((capsule.centerPx - stripLeftPx) / tabWidthPx - 0.5f).roundToInt()
+            .coerceIn(0, (count - 1).coerceAtLeast(0))
+    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(capsule) {
+        snapshotFlow { latestSelectedSlot }.collectLatest { slot ->
+            if (slot != currentSlot) {
+                currentSlot = slot
+                settleToSlot(slot)
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().zIndex(2f)) {
         // 选中滑块：位置与宽度在 layout 期读
         Box(
             modifier = Modifier.capsuleSliderPill(
@@ -684,31 +786,140 @@ private fun TabletNavTopBarStrip(
             ),
         )
 
-        // 点击区：每格一个 clickable，命中即回调并让胶囊吸附
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(2f),
-        ) {
-            Spacer(modifier = Modifier.width(with(density) { stripLeftPx.toDp() }))
-            topBarIndices.forEachIndexed { slot, itemIndex ->
-                Box(
-                    modifier = Modifier
-                        .width(with(density) { tabWidthPx.toDp() })
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            // 点哪一格胶囊就吸附到哪一格，不等宿主回传选中项
-                            val target = slotLeft(slot)
-                            capsule.settleTo(target, forward = target > capsule.leftPx)
-                            onSelect(itemIndex)
-                        },
-                )
-            }
+        // 手势区只在顶栏形态组合：侧栏形态下它若存在（哪怕不 consume）也会盖住
+        // items Column 的点击/滑选命中，导致侧栏触控失效。
+        if (state.topBarMode) {
+            TabletNavTopBarGestures(
+                capsule = capsule,
+                topBarIndices = topBarIndices,
+                stripLeftPx = stripLeftPx,
+                tabWidthPx = tabWidthPx,
+                trailMaxPx = trailMaxPx,
+                flingVelocityThreshold = flingVelocityThreshold,
+                currentSlot = currentSlot,
+                setCurrentSlot = { currentSlot = it },
+                settleToSlot = settleToSlot,
+                slotAtCapsule = slotAtCapsule,
+                latestOnSelect = latestOnSelect,
+                hapticFeedback = hapticFeedback,
+                viewConfiguration = viewConfiguration,
+            )
         }
     }
+}
+
+/** 顶栏点按 + 拖动 + 快甩，照 SegmentedControl 的完整手势。 */
+@Composable
+private fun TabletNavTopBarGestures(
+    capsule: CapsuleSelector,
+    topBarIndices: List<Int>,
+    stripLeftPx: Float,
+    tabWidthPx: Float,
+    trailMaxPx: Float,
+    flingVelocityThreshold: Float,
+    currentSlot: Int,
+    setCurrentSlot: (Int) -> Unit,
+    settleToSlot: (Int) -> Unit,
+    slotAtCapsule: () -> Int,
+    latestOnSelect: (Int) -> Unit,
+    hapticFeedback: HapticFeedback,
+    viewConfiguration: ViewConfiguration,
+) {
+    val lastIndex = (topBarIndices.size - 1).coerceAtLeast(0)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(2f)
+            .pointerInput(capsule, topBarIndices.size, tabWidthPx, hapticFeedback, flingVelocityThreshold) {
+                val touchSlop = viewConfiguration.touchSlop
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    // 左侧「返回侧栏」圆钮交给它自己的 clickable
+                    if (down.position.x < stripLeftPx) return@awaitEachGesture
+                    down.consume()
+                    val downX = down.position.x
+                    val startSlot = currentSlot.coerceIn(0, lastIndex)
+                    val fling = CapsuleFlingTracker(down.uptimeMillis, downX)
+
+                    var dragging = abs(downX - capsule.centerPx) <=
+                        tabWidthPx * CapsuleSlider.GrabHalfWidthRatio
+                    var pressedSlot = -1
+                    var dragAnchorLeft = capsule.leftPx
+                    var dragAnchorX = downX
+                    var trailVelocity = 0f
+
+                    if (!dragging) {
+                        pressedSlot = floor((downX - stripLeftPx) / tabWidthPx)
+                            .toInt().coerceIn(0, lastIndex)
+                        settleToSlot(pressedSlot)
+                    }
+
+                    var lastX = downX
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Main)
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null || !change.pressed) {
+                            val positionalTarget = if (dragging) {
+                                slotAtCapsule()
+                            } else {
+                                pressedSlot.coerceIn(0, lastIndex)
+                            }
+                            val flingDir = if (dragging) {
+                                fling.flingDirection(flingVelocityThreshold, touchSlop)
+                            } else 0
+                            val target = CapsuleSlider.flingTarget(
+                                startIndex = startSlot,
+                                positionalTarget = positionalTarget,
+                                indexDirection = flingDir,
+                                lastIndex = lastIndex,
+                            )
+                            setCurrentSlot(target)
+                            settleToSlot(target)
+                            if (target != startSlot) {
+                                hapticFeedback.performHapticFeedback(
+                                    HapticFeedbackType.TextHandleMove,
+                                )
+                            }
+                            // 点按一律回传，哪怕目标格与胶囊本地 currentSlot 相同：
+                            // 非顶栏项（如课程管理）折成顶栏时 indexOf=-1 被夹到 0，
+                            // 胶囊显示在「今日」但页面还在原页；此时点今日 target==startSlot，
+                            // 若跳过回传就永远切不过去。宿主 onMainTabSelected 已拦重复调用。
+                            latestOnSelect(topBarIndices[target])
+                            break
+                        }
+
+                        val dx = change.position.x - lastX
+                        val totalDx = change.position.x - downX
+                        fling.onMove(change.uptimeMillis, change.position, downX)
+                        if (!dragging && abs(totalDx) > touchSlop) {
+                            dragging = true
+                            dragAnchorLeft = capsule.leftPx
+                            dragAnchorX = change.position.x
+                            trailVelocity = 0f
+                            lastX = change.position.x
+                        }
+                        if (dragging) {
+                            trailVelocity = trailVelocity * CapsuleSlider.TrailSmoothing +
+                                dx * (1f - CapsuleSlider.TrailSmoothing)
+                            val trail = (abs(trailVelocity) * CapsuleSlider.TrailGain)
+                                .coerceAtMost(trailMaxPx)
+                            val dir = when {
+                                trailVelocity > 0.5f -> 1
+                                trailVelocity < -0.5f -> -1
+                                else -> 0
+                            }
+                            capsule.onDrag(
+                                leftPx = dragAnchorLeft + (change.position.x - dragAnchorX),
+                                trailPx = trail,
+                                dir = dir,
+                            )
+                        }
+                        lastX = change.position.x
+                        change.consume()
+                    }
+                }
+            },
+    )
 }
 
 /**
@@ -728,27 +939,31 @@ private fun TabletNavSideItem(
     /** 本条目自己的 morph 进度；默认不参与错落 */
     progress: () -> Float = { tabletNavSettleProgress(state) },
     clickableEnabled: Boolean = true,
+    /** 非 null 时由面板统一接管点按与滑选，本条目不再挂 clickable。 */
+    dragSelectEntry: DropdownPanelDragSelectState? = null,
     onClick: () -> Unit,
 ) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val interaction = if (dragSelectEntry != null && clickableEnabled) {
+        Modifier.dropdownPanelEntry(
+            enabled = true,
+            state = dragSelectEntry,
+            selected = selected,
+            action = { currentOnClick() },
+        )
+    } else {
+        Modifier.clickable(
+            enabled = clickableEnabled,
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = { currentOnClick() },
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                enabled = clickableEnabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+            .then(interaction),
     ) {
-        // 选中遮罩：仅侧栏形态显示，顶栏选中由胶囊滑块承担
-        if (selected && !state.topBarMode) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .background(CapsuleSlider.color(), ContinuousCapsule()),
-            )
-        }
         TabletNavItemContent(
             state = state,
             icon = icon,

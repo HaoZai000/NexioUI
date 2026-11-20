@@ -76,10 +76,20 @@ private val ScrollTapSlop = 12.dp
 /** 遮罩形态：Fade 逐项淡变；Sliding 面板层一整块连贯移动。 */
 enum class DropdownMaskMode { Fade, Sliding }
 
-private val DropdownMaskSpring =
+/** Sliding 遮罩几何弹簧；侧栏分组项上移复用同一条曲线，保证与遮罩同步。 */
+internal val DropdownMaskSpring =
     spring<Float>(dampingRatio = 0.85f, stiffness = 700f, visibilityThreshold = 0.01f)
 private const val DropdownMaskFadeInMs = 90
 private const val DropdownMaskFadeOutMs = 220
+
+/** Sliding 几何目标快照；作为 snapshotFlow 的发射值按值去重。 */
+private data class TargetGeom(
+    val start: Float,
+    val end: Float,
+    val cross0: Float,
+    val cross1: Float,
+    val visible: Boolean,
+)
 
 /** 按压 + 拉伸 + 阻尼位移的计算结果。 */
 data class DragTransform(
@@ -129,10 +139,11 @@ enum class DragSelectAxis { Vertical, Horizontal }
 class DropdownPanelEntry internal constructor() {
     internal var start = 0f
     internal var end = 0f
-    internal var maskLeft = 0f
-    internal var maskTop = 0f
-    internal var maskRight = 0f
-    internal var maskBottom = 0f
+    /** Sliding 几何：用 snapshot 状态，展开 / 形变恢复时布局矩形变化能触发遮罩跟随。 */
+    internal var maskLeft by mutableFloatStateOf(0f)
+    internal var maskTop by mutableFloatStateOf(0f)
+    internal var maskRight by mutableFloatStateOf(0f)
+    internal var maskBottom by mutableFloatStateOf(0f)
     internal var coordinates: LayoutCoordinates? = null
     internal var action: (() -> Unit)? = null
     internal var enabled = true
@@ -144,6 +155,10 @@ class DropdownPanelDragSelectState(
     val maskMode: DropdownMaskMode = DropdownMaskMode.Fade,
 ) {
     private val entries = mutableStateListOf<DropdownPanelEntry>()
+    private val selectedEntries = mutableStateListOf<DropdownPanelEntry>()
+
+    /** 常驻选中项：未滑选时 Sliding 遮罩停在它上面。 */
+    val pinnedEntry: DropdownPanelEntry? get() = selectedEntries.firstOrNull()
 
     /** 命中项；null 表示松手不执行。 */
     var selected by mutableStateOf<DropdownPanelEntry?>(null)
@@ -168,7 +183,17 @@ class DropdownPanelDragSelectState(
 
     internal fun unregister(entry: DropdownPanelEntry) {
         entries.remove(entry)
+        selectedEntries.remove(entry)
         if (selected === entry) selected = null
+    }
+
+    /** 条目登记常驻选中态；Sliding 遮罩据此在非滑选时归位。 */
+    internal fun setPinned(entry: DropdownPanelEntry, pinned: Boolean) {
+        if (pinned) {
+            if (!selectedEntries.contains(entry)) selectedEntries.add(entry)
+        } else {
+            selectedEntries.remove(entry)
+        }
     }
 
     internal fun updateBounds(entry: DropdownPanelEntry, start: Float, end: Float) {
@@ -182,10 +207,17 @@ class DropdownPanelDragSelectState(
         val container = maskContainer ?: return
         if (!coordinates.isAttached || !container.isAttached) return
         val position = container.localPositionOf(coordinates, Offset.Zero)
-        entry.maskLeft = position.x
-        entry.maskTop = position.y
-        entry.maskRight = position.x + coordinates.size.width
-        entry.maskBottom = position.y + coordinates.size.height
+        val left = position.x
+        val top = position.y
+        val right = position.x + coordinates.size.width
+        val bottom = position.y + coordinates.size.height
+        if (entry.maskLeft == left && entry.maskTop == top &&
+            entry.maskRight == right && entry.maskBottom == bottom
+        ) return
+        entry.maskLeft = left
+        entry.maskTop = top
+        entry.maskRight = right
+        entry.maskBottom = bottom
     }
 
     /** 容器坐标就绪后全量补算。 */
@@ -218,6 +250,8 @@ class DropdownPanelDragSelectState(
 
     internal fun clear() {
         selected = null
+        // 归位到常驻选中项；松手无命中时别让遮罩停在最近项
+        maskTarget = null
     }
 }
 
@@ -245,6 +279,7 @@ fun Modifier.dropdownPanelDragSelect(
 fun Modifier.dropdownPanelSlidingMask(
     state: DropdownPanelDragSelectState,
     shape: Shape? = null,
+    highlightPadding: PaddingValues = PaddingValues(0.dp),
 ): Modifier = composed {
     if (state.maskMode != DropdownMaskMode.Sliding) return@composed Modifier
 
@@ -254,27 +289,35 @@ fun Modifier.dropdownPanelSlidingMask(
     /** 非滑选轴边界（容器局部坐标），不进 snapshot。 */
     val maskCross = remember { floatArrayOf(0f, 0f) }
 
-    // 几何：null 时不动，已启动的弹簧继续跑到边界项
+    // 几何目标：滑选跟手，松手 / 未滑选时归到常驻选中项。
+    // 读矩形四个值（而不只是 entry 引用）：展开 / 形变恢复时布局矩形变化，遮罩才能跟着走。
     LaunchedEffect(state) {
-        snapshotFlow { state.maskTarget }.collect { target ->
-            if (target == null) return@collect
+        snapshotFlow {
+            val target = state.maskTarget ?: state.pinnedEntry ?: return@snapshotFlow null
             val horizontal = state.axis == DragSelectAxis.Horizontal
-            val start = if (horizontal) target.maskLeft else target.maskTop
-            val end = if (horizontal) target.maskRight else target.maskBottom
-            maskCross[0] = if (horizontal) target.maskTop else target.maskLeft
-            maskCross[1] = if (horizontal) target.maskBottom else target.maskRight
-            if (maskAlpha.value < 0.01f) {
-                maskStart.snapTo(start)
-                maskEnd.snapTo(end)
+            TargetGeom(
+                start = if (horizontal) target.maskLeft else target.maskTop,
+                end = if (horizontal) target.maskRight else target.maskBottom,
+                cross0 = if (horizontal) target.maskTop else target.maskLeft,
+                cross1 = if (horizontal) target.maskBottom else target.maskRight,
+                visible = maskAlpha.value > 0.01f,
+            )
+        }.collect { geom ->
+            if (geom == null) return@collect
+            maskCross[0] = geom.cross0
+            maskCross[1] = geom.cross1
+            if (geom.visible) {
+                launch { maskStart.animateTo(geom.start, DropdownMaskSpring) }
+                launch { maskEnd.animateTo(geom.end, DropdownMaskSpring) }
             } else {
-                launch { maskStart.animateTo(start, DropdownMaskSpring) }
-                launch { maskEnd.animateTo(end, DropdownMaskSpring) }
+                maskStart.snapTo(geom.start)
+                maskEnd.snapTo(geom.end)
             }
         }
     }
-    // 透明度：独立一条 flow，取消不会影响几何
+    // 透明度：滑选中或有常驻选中项时常亮
     LaunchedEffect(state) {
-        snapshotFlow { state.selected != null }.collectLatest { visible ->
+        snapshotFlow { state.selected != null || state.pinnedEntry != null }.collectLatest { visible ->
             maskAlpha.animateTo(
                 if (visible) 1f else 0f,
                 tween(if (visible) DropdownMaskFadeInMs else DropdownMaskFadeOutMs),
@@ -291,10 +334,20 @@ fun Modifier.dropdownPanelSlidingMask(
             drawContent()
             val alpha = maskAlpha.value
             if (alpha <= 0f) return@drawWithContent
+            val padLeft = highlightPadding.calculateLeftPadding(layoutDirection).toPx()
+            val padTop = highlightPadding.calculateTopPadding().toPx()
+            val padRight = highlightPadding.calculateRightPadding(layoutDirection).toPx()
+            val padBottom = highlightPadding.calculateBottomPadding().toPx()
             val rect = if (state.axis == DragSelectAxis.Horizontal) {
-                Rect(maskStart.value, maskCross[0], maskEnd.value, maskCross[1])
+                Rect(
+                    maskStart.value + padLeft, maskCross[0] + padTop,
+                    maskEnd.value - padRight, maskCross[1] - padBottom,
+                )
             } else {
-                Rect(maskCross[0], maskStart.value, maskCross[1], maskEnd.value)
+                Rect(
+                    maskCross[0] + padLeft, maskStart.value + padTop,
+                    maskCross[1] - padRight, maskEnd.value - padBottom,
+                )
             }
             drawShapedRect(rect, maskShape, maskColor.copy(alpha = maskColor.alpha * alpha))
         }
@@ -418,6 +471,7 @@ fun Modifier.dropdownPanelEntry(
     SideEffect {
         entry.action = action
         entry.enabled = enabled
+        if (dragSelect != null) dragSelect.setPinned(entry, selected)
     }
     val registered = this.onGloballyPositioned {
         val dragState = dragSelect ?: return@onGloballyPositioned

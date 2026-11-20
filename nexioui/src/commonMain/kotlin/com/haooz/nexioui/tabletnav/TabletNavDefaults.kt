@@ -28,7 +28,7 @@ object TabletNavDefaults {
     val ItemHeight = 52.dp
 
     /** 侧栏条目行距。 */
-    val ItemGap = 4.dp
+    val ItemGap = 0.dp
 
     /** 图标尺寸。 */
     val IconSize = 26.dp

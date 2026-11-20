@@ -10,6 +10,7 @@ import com.haooz.softglass.glass.GlassFill
 import com.haooz.softglass.glass.GlassTone
 import com.haooz.softglass.glass.SoftGlassStyle
 import com.haooz.softglass.glass.ThemeFill
+import com.haooz.softglass.liquidClear
 import com.haooz.softglass.surfaceAlpha
 import com.haooz.softglass.tuning
 
@@ -21,7 +22,7 @@ enum class NexioMaterialLevel {
     /** 柔光玻璃：完整折射 + 方向光。 */
     Soft,
 
-    /** 液态玻璃：与柔光一致，只把折射换成液态位移场，模糊压低一档。 */
+    /** 液态玻璃：折射换液态位移场、调色走清透口径，模糊压低一档。 */
     Liquid,
 
     /** 清透磨砂：无折射、无边光。 */
@@ -97,7 +98,12 @@ object NexioMaterial {
         tone: GlassTone = BrightTone,
     ): SoftGlassStyle {
         val resolved = base.copy(fill = fill, tone = tone).filled(isDark)
-        val glass = resolved.copy(liquidRefraction = isLiquid())
+        // liquidClear 必须排在 filled 之后：基调会把调色字段写回柔光档的值
+        val glass = if (isLiquid()) {
+            resolved.copy(liquidRefraction = true).liquidClear()
+        } else {
+            resolved
+        }
         return if (isSoft() || isLiquid()) {
             glass
         } else {

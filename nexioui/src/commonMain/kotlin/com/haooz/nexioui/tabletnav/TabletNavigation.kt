@@ -72,9 +72,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.haooz.nexioui.icon.NexioIcons
-import com.haooz.nexioui.icon.extended.HorizontalSplit
 import com.haooz.nexioui.icon.extended.Sidebar
-import com.haooz.nexioui.icon.extended.VerticalSplit
 import com.haooz.nexioui.interaction.InteractiveHighlight
 import com.haooz.nexioui.material.NexioGlassStyle
 import com.haooz.nexioui.material.NexioMaterial
@@ -668,7 +666,7 @@ fun TabletNavigation(
         ) {
             Box(Modifier.tabletNavMorphSize(state, buttonIconFromPx, topBarIconPx)) {
                 Icon(
-                    imageVector = NexioIcons.Regular.HorizontalSplit,
+                    imageVector = TabletNavIconCollapseTopBar,
                     contentDescription = if (topBarMode) null else navigationLabel,
                     tint = textColor,
                     modifier = Modifier
@@ -678,7 +676,7 @@ fun TabletNavigation(
                         },
                 )
                 Icon(
-                    imageVector = NexioIcons.Regular.VerticalSplit,
+                    imageVector = TabletNavIconExpandSidebar,
                     contentDescription = if (topBarMode) navigationLabel else null,
                     tint = textColor,
                     modifier = Modifier

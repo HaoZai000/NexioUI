@@ -180,10 +180,6 @@ fun TabletNavigation(
     val interactiveHighlight = remember(animationScope, state, isDark) {
         InteractiveHighlight(
             animationScope = animationScope,
-            // 三态统一：折叠侧栏 / 展开侧栏 / 顶栏都用同一个光斑半径倍率，
-            // 不随展开或形变进度缩放。
-            radiusScale = { 0.7f },
-            radiusBaseDp = 150.dp,
             isDark = { isDark },
         )
     }

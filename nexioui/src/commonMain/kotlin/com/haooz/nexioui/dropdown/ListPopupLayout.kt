@@ -132,8 +132,6 @@ private const val ContentExitTo = 0.78f
 private const val CollapseIconKEnter = 3.2f
 private const val CollapseIconKExit = 1.7f
 
-private val HighlightRadiusBase = 150.dp
-
 /** layout 阶段算出的锚点角，普通对象，draw 同帧可读。 */
 internal class DropdownPopupAnchors {
     var rightAligned: Boolean = false
@@ -503,8 +501,6 @@ private fun DropdownPopupPanel(
     val dragHighlight = remember(dragScope, isDark) {
         InteractiveHighlight(
             animationScope = dragScope,
-            radiusScale = { 1f - 0.3f * fractionProgress().coerceIn(0f, 1f) },
-            radiusBaseDp = HighlightRadiusBase,
             isDark = { isDark },
         )
     }

@@ -192,10 +192,9 @@ fun BottomBar(
         )
     }
     val actionHighlight = if (action != null) {
-        remember(animationScope, height) {
+        remember(animationScope) {
             InteractiveHighlight(
                 animationScope = animationScope,
-                radiusBaseDp = height,
                 isDark = { !isLightTheme },
             )
         }

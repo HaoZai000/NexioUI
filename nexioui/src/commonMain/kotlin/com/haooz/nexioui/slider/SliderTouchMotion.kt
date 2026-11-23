@@ -15,10 +15,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 
 /**
- * 触摸橡皮筋位移。
- *
- * 手指拖动时整条滑条跟随平移，越界部分按 [rubber] 公式阻尼收敛，最多平移
- * `28dp × density`。拖动期间直接贴手（不经过弹簧），松手后按起始速度弹回原位。
+ * 触摸橡皮筋位移：拖动时滑条贴手平移，越界按 [rubber] 阻尼、上限 `28dp × density`，松手按起始速度弹回。
  *
  * @param scope 承载回弹动画与生命周期协程的作用域。
  * @param density 当前屏幕密度，用于把 28dp / 56dp / 100dp 换算成像素。

@@ -6,13 +6,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 
 /**
- * 原生输入框（跨平台入口）。
- *
- * Android 用 `AndroidView(EditText)` 包装：系统原生长按菜单、原生光标 / 选择手柄着色。
- * skiko（JVM 桌面 / iOS / wasmJs）用 `BasicTextField` 兜底，视觉对齐但不提供系统菜单。
- *
- * 与 [com.haooz.nexioui.textfield.TextField] 的区别：本组件没有底色 / 圆角 / 标签，
- * 是一块裸输入区，用于已经自带容器的场景（对话框行内编辑等）。
+ * 裸输入区（无底色/圆角/标签）：Android 用 `AndroidView(EditText)` 保留系统长按菜单与手柄着色，skiko 用 `BasicTextField` 兜底。
  *
  * @param value 文本内容
  * @param onValueChange 内容变化回调

@@ -37,10 +37,7 @@ import com.haooz.nexioui.surface.Surface
 import com.haooz.nexioui.theme.NexioTheme
 
 /**
- * 页面脚手架：顶栏 / 底栏 / 悬浮按钮 / 悬浮工具栏 / Snackbar / 弹层槽 + 内容内边距。
- *
- * 只在 [topBar] / [bottomBar] 缺席时把系统栏内边距给到 [content]；两者存在时由它们自己处理。
- * 已被父级 padding 或 `consumeWindowInsets` 消费的 insets 会从 [contentWindowInsets] 中排除。
+ * 页面脚手架：顶栏/底栏/悬浮件/弹层槽 + 内容内边距。系统栏 insets 仅在 [topBar]/[bottomBar] 缺席时给 [content]，已被消费的从 [contentWindowInsets] 排除。
  *
  * @param popupHost 弹层宿主槽（下拉菜单、对话框等），默认空。
  * @param content 内容；收到的 [PaddingValues] 应通过 `Modifier.padding` + `consumeWindowInsets`

@@ -4,15 +4,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 import kotlin.math.roundToInt
 
-/**
- * 让内容顶部让位给折叠顶栏，且**只在布局阶段读取** [SharedScrollBehavior.currentHeightPx]。
- *
- * `currentHeightPx` 折叠期间逐帧变化。若用 `Modifier.padding(top = ...)` 或 LazyColumn 的
- * `contentPadding` 读它，是在组合期订阅 —— 每折叠一帧整个页面重组一次。
- *
- * 用法：顶部内边距固定为「状态栏高度 + [CollapsibleTopAppBarDefaults.CollapsedHeight]」，
- * 展开态多出的部分由本 Modifier 在布局阶段补齐。顶栏未上报高度时按折叠态摆放，测后自纠。
- */
+/** 折叠顶栏的内容让位：只在 layout 期读 [SharedScrollBehavior.currentHeightPx]，避免逐帧重组；固定折叠态内边距，展开态多出的由本 Modifier 补齐。 */
 fun Modifier.collapsibleTopInset(scrollBehavior: SharedScrollBehavior?): Modifier =
     layout { measurable, constraints ->
         val collapsedPx = CollapsibleTopAppBarDefaults.CollapsedHeight.roundToPx()

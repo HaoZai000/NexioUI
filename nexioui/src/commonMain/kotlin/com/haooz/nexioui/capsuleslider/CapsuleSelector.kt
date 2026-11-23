@@ -16,12 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * 选中胶囊的运动控制器：左右两条边界各跑一条弹簧。
- *
- * - 拖动时两条边跟随手指，并按运动方向拉出拖尾；
- * - 吸附时「前边快、后边慢」，宽度中途被撑开再收回，橡皮筋感来自两条线的速度差。
- *
- * 位置只在 layout 期读取（见 [capsuleBounds]），组合期不碰任何高频值。
+ * 选中胶囊的运动控制器：左右边界各跑一条弹簧，速度差形成拖尾与橡皮筋感；位置只在 layout 期读（见 [capsuleBounds]）。
  *
  * @param scope 驱动帧循环的作用域（通常为 `rememberCoroutineScope()`）。
  * @param widthPx 胶囊静止宽度（一格 tab 减去两侧内缩）；tab 数变化时整体重建，不做插值。

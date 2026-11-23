@@ -49,16 +49,7 @@ private const val MASK_SPEED = 0.9f
 private const val RIPPLE_DURATION_MILLIS = 1600
 
 /**
- * 启动水波 + 开场圆形遮罩：移植 HyperOS 开机引导里的扩散光环与揭幕
- * （`oobe_glow.agsl` 的 circle 段与 mask 段）。
- *
- * 两层各走各的时间轴（照抄参考，不是同步的）：
- * - 光环：`animatedTime = t * 0.9`，**从 0s 就开始扩**，`t/(k - t(k-1))`（k=1.4）缓动，
- *   1.11s 扩到屏幕边缘；
- * - 遮罩：`easeOutQuad(min(t*0.9 - 0.3, 1))`，**0.3s 才起步**，1.44s 铺满全屏。
- * 所以光环始终跑在遮罩边缘前面一圈，从黑里透出来才看得见。
- *
- * 只播一次，播完整层撤掉。
+ * 水波 + 揭幕遮罩，移植 `oobe_glow.agsl`。两层时间轴不同步：光环 0s 起扩、1.11s 到屏边（`t/(k-t(k-1))`, k=1.4），遮罩 0.3s 起步、1.44s 铺满（`easeOutQuad(min(t*0.9-0.3,1))`），光环始终跑在遮罩前一圈。只播一次。
  *
  * @param progress 由调用方持有的 0→1 进度；本组件负责把它推进到 1。
  * @param durationMillis 整段动画时长。
@@ -174,13 +165,8 @@ half4 main(float2 fragCoord) {
 """
 
 /**
- * 开场圆形遮罩，照抄 `oobe_glow.agsl` 结尾的 mask 段：
- *
- * `radius = easeOutQuad(min(uTime*0.9 - uMaskDelay, 1.0))`
- * `mask = 1.0 - smoothstep(radius - uMaskThickness, radius + uMaskThickness, dist)`
- *
- * 参考把遮罩乘在整屏颜色上（`mix(vec3(0.0), finalColor, mask)`），这里输出等价的一层黑：
- * 遮罩内透明、遮罩外不透明，扣在页面最上层即把画面「揭」出来。
+ * 揭幕遮罩（`oobe_glow.agsl` mask 段）：`radius = easeOutQuad(min(uTime*0.9 - uMaskDelay, 1.0))`，
+ * `mask = 1.0 - smoothstep(radius - uMaskThickness, radius + uMaskThickness, dist)`；输出等价黑层，遮罩内透明、外不透明。
  */
 private const val WATER_RIPPLE_MASK_SHADER = """
 uniform float2 uResolution;

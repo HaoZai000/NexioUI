@@ -118,14 +118,7 @@ private class InvalidateDrawOnStateNode(
 }
 
 /**
- * 顶部栏渐进模糊：模糊半径随 Y 从顶部最大（[BlurMaxRadius]）连续收到 0。
- *
- * 四条渲染路径，按能力从高到低：
- * 1. 渐变遮罩（无材质档）：无模糊，表面色 alpha 纵向渐变淡出。
- * 2. AGSL 两趟（`isRuntimeShaderSupported()`）：抖动采样 + 环形去噪。
- * 3. 假渐进（开关关闭，或 AGSL 不可用但 RenderEffect 可用）：一次 blur + 一个极简淡出 pass
- *    串在同一条 RenderEffect 链里。API 31–32 / 鸿蒙没有 AGSL 图像滤镜，退回 `Offscreen + DstIn`。
- * 4. 渐变遮罩兜底（无 RenderEffect）：模糊不可用时不降级为纯色。
+ * 顶部栏渐进模糊：半径随 Y 从 [BlurMaxRadius] 连续收到 0。渲染路径按能力降级：渐变遮罩 → AGSL 两趟（抖动+环形去噪）→ 假渐进（单次 blur + 淡出 pass；API 31–32/鸿蒙走 `Offscreen + DstIn`）→ 无 RenderEffect 时渐变遮罩兜底，不退化纯色。
  */
 @Composable
 fun ProgressiveBlurTopBar(

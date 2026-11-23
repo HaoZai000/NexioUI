@@ -11,17 +11,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * 单通道弹簧动画。
- *
- * 跨平台实现基于 Compose 的 [spring]，与二阶弹簧的落点、收敛速度一致：
+ * 单通道弹簧动画：基于 Compose [spring]；[animateTo] 运行中只改目标与速度，不从静止起步。
  *
  * | 参数 | 含义 | 换算 |
  * | --- | --- | --- |
  * | `response` | 固有振荡周期，单位秒 | `stiffness = (2π / response)²` |
  * | `bounce` | 回弹幅度，0 为临界阻尼 | `dampingRatio = 1 - bounce` |
- *
- * 运行中再次调用 [animateTo] 会沿用当前速度重定向（等价于
- * `SpringAnimation.animateToFinalPosition`），因此连续喂目标时不会从静止重新起步。
  *
  * @param initial 初始值。
  * @param scope 承载动画协程的作用域，通常取 `rememberCoroutineScope()`。

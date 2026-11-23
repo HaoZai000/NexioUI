@@ -23,11 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * 按压跟手高光。
- *
- * 只观察指针，不消费事件；以按下位置为点光源画一团柔和光效（与 Slider 同一套光照：
- * Lambert 漫反射 + 环境光，固定设备像素半径，按下展开、熄灭再扩散）。
- * 所有按压高光（含 Slider）共用这一份绘制实现。
+ * 按压跟手高光：只观察指针不消费事件；以按下点为光源做 Lambert 漫反射 + 环境光，固定设备像素半径，按下展开、熄灭扩散。所有按压高光共用本实现。
  *
  * @param animationScope 驱动高光与回弹动画的作用域。
  * @param position 将手指位置映射到绘制坐标系。

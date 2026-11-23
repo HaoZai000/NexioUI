@@ -20,10 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /**
- * OS3 风格动态背景：四个彩色光点缓慢漂移、配色循环渐变，铺在 [content] 之下。
- *
- * 不支持 runtime shader 的平台直接退化为普通 [Box]。
- *
+ * OS3 风格动态背景：彩色光点漂移、配色循环渐变，铺在 [content] 之下；不支持 runtime shader 时退化为 [Box]。
  * @param dynamicBackground 是否播放动画（关闭后只画一帧静态渐变）。
  * @param bgModifier 追加给背景层的 Modifier（例如玻璃采样层）。
  * @param isFullSize 背景占满全高（true）还是只占下半屏（false）。

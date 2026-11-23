@@ -47,11 +47,7 @@ private val TrackInset = 16.dp
 private val HighlightDragSlop = 2.dp
 
 /**
- * 可吸附的跨平台滑块。
- *
- * 手势、物理动画与绘制全部在 commonMain，各平台共用；跟手光效复用 [InteractiveHighlight]。
- * 逻辑值与绘制位置分离：拖动时 thumb 贴手，吸附、外部赋值与惯性走弹簧，
- * 因此调用方在 [onValueChange] 中连续回写不会打断手势。
+ * 可吸附的跨平台滑块：逻辑值与绘制位置分离，回写 [onValueChange] 不打断手势；跟手光效复用 [InteractiveHighlight]。
  *
  * @param value 当前值。
  * @param onValueChange 值变化回调，拖动过程中连续触发。

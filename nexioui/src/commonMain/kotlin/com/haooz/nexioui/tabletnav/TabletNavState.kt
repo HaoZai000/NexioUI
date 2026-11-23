@@ -14,8 +14,7 @@ import androidx.compose.runtime.setValue
  * | [morphProgress] | 侧栏 → 顶部胶囊 | 面板四边界、圆角、条目形变 |
  * | [landBounce] | 静止 → 顶到底 | 面板底缘额外高度 |
  *
- * 三个进度都**不要在组合期读**，否则整树会随动画每帧重组；
- * layout / draw / graphicsLayer 里可以随便读。
+ * 三个进度只在 layout / draw / graphicsLayer 读；组合期读会逐帧重组整树。
  */
 class TabletNavState(
     expanded: Boolean = true,

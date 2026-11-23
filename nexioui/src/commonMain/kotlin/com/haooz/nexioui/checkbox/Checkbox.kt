@@ -43,9 +43,7 @@ import com.haooz.nexioui.theme.NexioTheme
 import com.haooz.softglass.shape.ContinuousCapsule
 
 /**
- * 复选框，支持开、关与半选三态。
- *
- * 状态由调用方维护；对勾按线段长度裁剪绘制，半选时两段向中线收拢成一条短横。
+ * 三态复选框（开/关/半选）：状态由调用方维护，对勾按线段长度裁剪，半选收拢成短横。
  *
  * @param state 当前三态。
  * @param onClick 点击回调；为 null 时不可交互。

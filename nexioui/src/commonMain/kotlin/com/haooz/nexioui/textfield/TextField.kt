@@ -19,11 +19,7 @@ import com.haooz.nexioui.theme.NexioTheme
 internal val LocalNexioTextFieldInDialog = staticCompositionLocalOf { false }
 
 /**
- * 输入框：连续圆角背景 + 浮动标签 + 聚焦主色描边。
- *
- * Android 使用原生 EditText，保留系统选择控件与输入法行为；skiko 平台使用
- * BasicTextField。两端共享同一套外壳与标签动画逻辑。
- *
+ * 输入框：连续圆角背景 + 浮动标签 + 聚焦主色描边；Android 用原生 EditText 保留系统选择与输入法行为，skiko 用 BasicTextField，共享外壳与标签动画。
  * @param value 文本内容
  * @param onValueChange 内容变化回调
  * @param insideMargin 内边距（同时决定标签浮动的位移基准）

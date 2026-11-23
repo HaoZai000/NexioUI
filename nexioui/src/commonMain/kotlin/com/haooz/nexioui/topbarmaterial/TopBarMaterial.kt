@@ -79,16 +79,7 @@ fun rememberTopBarMaterialState(visible: Boolean): TopBarMaterialState {
     return state
 }
 
-/**
- * 材质判据本体（唯一一份）：给累计滚动量与越界量，回答「现在该不该有材质」。
- *
- * 两支：
- * 1. 停在顶部向下回弹（`overScrollOffset < 0`）：直接算出现。
- * 2. 内容滚过 [TopBarMaterialThreshold]：`contentOffset` 是累计滚动量，回到顶部才归零。
- *
- * `contentOffset` 会被越界位移污染：回弹时越界节点把 `available` 返给父级，
- * `SharedScrollBehavior.onPostScroll` 照样累加。正值在真实滚动里不可能出现，直接夹到 0 自愈。
- */
+/** 材质判据：回弹出界即出现材质，滚过 [TopBarMaterialThreshold] 才常驻；越界累加的正值夹到 0 自愈。 */
 fun isTopBarMaterialVisible(
     contentOffset: Float,
     thresholdPx: Float,

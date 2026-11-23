@@ -5,16 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 
-/**
- * 非 Android 平台的系统返回分发点。
- *
- * 这些平台没有 activity 的 `OnBackPressedDispatcher`，所以留一个栈：弹层 / 底部抽屉 / 连贯动画页
- * 在 `rememberNavigationBack().handler(...)` 里注册，宿主收到系统返回时调 [dispatch]。
- *
- * 后注册的（z 序在上）先被调用 —— 与组合顺序一致，弹窗天然压住它下面的页面。
- *
- * 只在主线程（组合 / UI 线程）使用，不加锁。
- */
+/** 非 Android 平台的返回分发栈：后注册者先收到返回（z 序在上），只在主线程调用，不加锁。 */
 object BackDispatcher {
 
     private val handlers = mutableListOf<() -> Unit>()

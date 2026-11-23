@@ -8,11 +8,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.haooz.softglass.shape.ContinuousCapsule
 
 /**
- * 胶囊滑块本体：唯一绘制实现。
- *
- * 位置与宽度在 layout 期读（[capsuleBounds]），组合期不碰高频值；
- * 按压缩放走 `graphicsLayer`，绘制期读一次按压进度，不进组合、不触发 layout。
- * 只收缩、不压暗 —— 没有水波纹、没有遮罩层。
+ * 胶囊滑块唯一绘制实现：位置/宽度在 layout 期读（[capsuleBounds]），按压缩放走 `graphicsLayer`；只收缩、不压暗，无水波纹或遮罩层。
  *
  * @param heightPx 胶囊高度（px）。
  * @param pressProgress 按压进度 0..1。

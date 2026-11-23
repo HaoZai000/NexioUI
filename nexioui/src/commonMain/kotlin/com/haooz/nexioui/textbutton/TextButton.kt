@@ -50,10 +50,7 @@ import com.haooz.softglass.shape.ContinuousCapsule
 private const val LIVE_TEXT_BUTTON_GLASS_KEY = "NexioSoftGlassLiveTextButton"
 
 /**
- * 悬浮液态玻璃文字按钮。
- *
- * 依赖调用方传入的 [backdrop]（通常是整页的玻璃采样层）；按钮自身负责投影、按压高光、
- * 拖动形变与玻璃材质，不裁切形变。
+ * 悬浮液态玻璃文字按钮：依赖调用方的 [backdrop] 采样，自带投影、按压高光、拖动形变，不裁切形变。
  *
  * @param text 按钮文案。
  * @param onClick 点击回调。

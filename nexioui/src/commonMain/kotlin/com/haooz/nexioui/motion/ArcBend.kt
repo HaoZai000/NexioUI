@@ -1,13 +1,6 @@
 /*
- * 通用的「连续弯曲」形变：按一个轴对整层内容做逐行/逐列缩放，用一次 runtime shader 采样完成，
- * 不录制位图、不逐列绘制。任何页面都可以挂 [Modifier.arcBend]。
- *
- * [ArcBendAxis.Horizontal]：按 x 分列做纵向缩放，左右两端形状不同 —— 配绕纵轴（rotationY）翻转。
- * [ArcBendAxis.Vertical]：按 y 分行做横向缩放，上下两端形状不同 —— 配绕横轴（rotationX）翻转。
- * 轴必须与翻转轴对应，否则「上下翻却是左右弯」，看着像扭了一下。
- *
- * 目标像素被缩放 s 倍，故反查源像素 src = center + (p - center) / s。按坐标连续求值，
- * 整条弧线没有台阶。Android 走 AGSL，Skia 后端（iOS / 鸿蒙 / 桌面）走 SkSL，同一份源码。
+ * 连续弯曲形变：一次 shader 采样完成逐行/列缩放，不录位图。Horizontal 配 rotationY、Vertical 配 rotationX，轴错配会看着像扭了一下。
+ * 源像素反查 `src = center + (p - center) / s`，连续求值无台阶；Android AGSL / Skia SkSL 同源。
  */
 package com.haooz.nexioui.motion
 
@@ -101,23 +94,15 @@ expect fun arcBendSupported(): Boolean
 internal expect fun createArcBendShader(): ArcBendShader?
 
 /**
- * 给整层内容挂上连续弯曲。进度、曲线、幅度、轴向都由调用方给，本 Modifier 不持有任何状态机。
+ * 给整层挂连续弯曲；进度/曲线/幅度/轴向由调用方给，本 Modifier 无状态机。
  *
  * ```
- * Box(
- *     Modifier.arcBend(
- *         shape = ArcBendShape.InwardOutward,
- *         amplitude = { 0.35f * sin(PI * progress) },
- *         axis = ArcBendAxis.Vertical,
- *         visible = { progress > 0f },
- *     )
- * ) { content() }
+ * Modifier.arcBend(shape = ArcBendShape.InwardOutward, amplitude = { 0.35f * sin(PI * progress) },
+ *     axis = ArcBendAxis.Vertical, visible = { progress > 0f })
  * ```
  *
- * - amplitude 只在绘制阶段读，不会逐帧重组；≤ 0.001 时该帧不挂效果。
- * - [axis] 默认 [ArcBendAxis.Horizontal]（配 rotationY 翻转）；上下翻的页面必须传 Vertical。
- * - [visible] 为 false 时连内容一起跳过绘制（转场里常有一半时间只画一面）。
- * - 不支持 shader 的平台本 Modifier 退化为原样绘制，降级由调用方用 [arcBendSupported] 决定。
+ * amplitude 只在绘制期读、≤0.001 该帧不挂；[axis] 默认 Horizontal（配 rotationY），上下翻须传 Vertical；
+ * [visible]=false 连内容一起跳过；无 shader 时原样绘制，由调用方用 [arcBendSupported] 决定降级。
  */
 @Composable
 fun Modifier.arcBend(

@@ -21,12 +21,7 @@ import kotlinx.coroutines.launch
 internal enum class SliderHapticEvent { Edge, Step }
 
 /**
- * 滑块交互状态机。
- *
- * 逻辑值 [value] 与绘制位置 [position] 分离：拖动时 thumb 贴手，
- * 磁吸、外部赋值与惯性走弹簧，因此调用方回写不会打断手势。
- *
- * 模式优先级：锚点（[keyPointFractions] 非空）> 分段（[section]）> 连续。
+ * 滑块交互状态机：值/位置分离使外部回写不打断手势；模式优先级 锚点 > 分段 > 连续。
  *
  * @param range 取值区间。
  * @param steps 等分档位数，不含两端。

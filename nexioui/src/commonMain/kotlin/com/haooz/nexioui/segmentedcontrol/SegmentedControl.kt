@@ -67,9 +67,7 @@ import kotlinx.coroutines.launch
 private const val LIVE_SEGMENT_PILL_GLASS_KEY = "NexioSoftGlassLiveSegmentPill"
 
 /**
- * 胶囊分段控件。
- *
- * 选中块是一个可拖动、可快甩的胶囊；点按其它格子会直接切过去，拖动则松手吸附到最近格。
+ * 胶囊分段控件：选中块可拖动、可快甩；点按其它格直接切换，拖动松手吸附最近格。
  *
  * @param options 选项文案。
  * @param selectedIndex 当前选中项。

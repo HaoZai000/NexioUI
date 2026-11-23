@@ -1,8 +1,5 @@
 /*
- * 缓动与时序常量。
- *
- * 类名沿用「Oobe」前缀只是历史遗留 —— 它们从 HyperOS 开机引导的动效中提取，
- * 现在被各类页面转场直接使用。
+ * 页面转场共用的缓动与时序常量（HyperOS 开机引导动效口径）。
  *
  * Animation timings are derived from HyperCeiler provision at commit
  * 7266aaa0d698ad10795381c5bf23651c2e1719d0.

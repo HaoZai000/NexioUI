@@ -1,10 +1,7 @@
 package com.haooz.nexioui.interaction
 
 /**
- * COUI `SpotLight.AGSL_SOURCE` 原文。
- *
- * 以手指位置为点光源，按 Lambert 漫反射加环境光计算亮度，再叠加噪声与抖动抑制色带。
- * Android 端由 `RuntimeShader`、Skiko 端由 `RuntimeEffect` 编译，同一份源码两端共用。
+ * COUI `SpotLight.AGSL_SOURCE` 原文：以手指为点光源做 Lambert 漫反射 + 环境光，噪声与抖动抑制色带；Android `RuntimeShader` / Skiko `RuntimeEffect` 同源。
  *
  * uniform 约定：
  * - `u_lightPosAndHeight`：`xy` 光源坐标（像素）、`z` 光照半径、`w` 强度 × 淡入进度。

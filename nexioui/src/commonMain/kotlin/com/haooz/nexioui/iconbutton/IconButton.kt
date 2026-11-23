@@ -52,9 +52,7 @@ import com.haooz.softglass.shape.ContinuousCapsule
 private const val LIVE_ICON_BUTTON_GLASS_KEY = "NexioSoftGlassLiveIconButton"
 
 /**
- * 圆形液态玻璃图标按钮。
- *
- * 拖动时沿拖动方向拉伸、抬手回弹；按压高光跟随手指，图标随整体形变。
+ * 圆形液态玻璃图标按钮：拖动方向拉伸、抬手回弹，按压高光跟手，图标随整体形变。
  *
  * @param onClick 点击回调。
  * @param backdrop 底层玻璃采样。

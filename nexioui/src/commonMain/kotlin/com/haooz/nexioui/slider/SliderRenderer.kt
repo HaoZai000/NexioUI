@@ -24,10 +24,7 @@ import kotlin.math.roundToInt
 import com.haooz.nexioui.internal.drawBlurredPathShadow
 
 /**
- * 滑块的绘制层。
- *
- * 轨道形状由宿主传入的 [shape] 决定，同一份 Path 也用于裁剪跟手光效。所有几何量按
- * density 换算，`Path` 与 `Paint` 复用，避免每帧分配。
+ * 滑块绘制层：[shape] 同时决定轨道与跟手光效裁剪；几何量按 density 换算，Path/Paint 复用避免逐帧分配。
  *
  * @param density 屏幕密度。
  * @param shape 轨道形状；默认 [SliderTrackShape]。

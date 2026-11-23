@@ -14,10 +14,7 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * COUI 弹簧：与 AndroidX SpringAnimation 同语义。
- *
- * 动画一旦启动就持续运行，[animateTo] 在运行中只更新目标与速度、不重启协程，
- * 因此高频拖动的目标更新不会打断弹簧（这正是原版跟手流畅的关键）。
+ * COUI 弹簧：与 AndroidX SpringAnimation 同语义；运行中 [animateTo] 只更新目标与速度、不重启协程，高频拖动不打断跟手。
  *
  * @param initial 初始值。
  * @param scope 驱动弹簧的作用域。

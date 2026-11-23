@@ -17,6 +17,13 @@ import com.haooz.softglass.backdrop.GlassBackdrop
 val LocalOverlayDialogBackdrop = staticCompositionLocalOf<GlassBackdrop?> { null }
 
 /**
+ * 弹窗该用哪一层采样 —— **全站唯一判定点**。
+ */
+@Composable
+fun overlayDialogBackdrop(pageBackdrop: GlassBackdrop): GlassBackdrop =
+    LocalOverlayDialogBackdrop.current ?: pageBackdrop
+
+/**
  * 通用对话框：标题 + 摘要 + 自定义内容。
  *
  * 手机贴底、宽屏居中；点击外部或返回键关闭。

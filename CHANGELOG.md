@@ -16,6 +16,7 @@
 - TextField 底色改 `secondaryContainer`，对话框内用半透明叠加；小标题固定灰蓝色。
 - 底栏 / 下拉 / 平板侧栏点按高光统一默认 500px。
 - 源码注释精简为技术契约短句。
+- 依赖 SoftGlass 升至 `0.1.4`（清透口径 / `bodyDensity` 所需），CI 与 JitPack 统一走该版本。
 
 ## [0.1.1] - 2026-11-19
 

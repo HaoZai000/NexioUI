@@ -2,7 +2,7 @@
 
 可复用的 Compose Multiplatform 控件库。所有控件实现在 `commonMain`，Android / JVM（桌面）/ iOS 共用同一份源码，不依赖任何系统私有框架。
 
-> 状态：`0.1.0`，API 仍在收敛，升级前请留意 [CHANGELOG](CHANGELOG.md)。
+> 状态：`0.1.2`，API 仍在收敛，升级前请留意 [CHANGELOG](CHANGELOG.md)。
 
 ## 特性
 
@@ -40,7 +40,7 @@ dependencyResolutionManagement {
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.github.HaoZai000.NexioUI:nexioui:0.1.0")
+    implementation("com.github.HaoZai000.NexioUI:nexioui:0.1.2")
 }
 ```
 

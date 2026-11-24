@@ -2,7 +2,7 @@
 // 所有控件实现在 commonMain，Android / JVM / iOS / 鸿蒙共用同一份源码。
 
 group = "com.haooz.nexioui"
-version = "0.1.1"
+version = "0.1.2"
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
